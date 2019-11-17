@@ -1,76 +1,134 @@
 import React, { Component } from 'react';
-import { Platform, StyleSheet, Text, View, TextInput } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
-import DateTimePicker from '@react-native-community/datetimepicker';
-
+import { Platform, StyleSheet, ProgressBarAndroid, Text, View, TextInput, Button } from 'react-native';
+import { ScrollView, FlatList } from 'react-native-gesture-handler';
+import DatePicker from 'react-native-datepicker'
+import { createAppContainer } from 'react-navigation';
+import { createStackNavigator } from 'react-navigation-stack';
 const instructions = Platform.select({
   ios: 'Press Cmd+R to reload,\n' + 'Cmd+D or shake for dev menu',
   android: 'Double tap R on your keyboard to reload,\n' + 'Shake or press menu button for dev menu',
 });
 
-class ChronoList extends React.Component{
+
+
+class ChronoList extends Component{
   constructor(props){
     super(props);
      this.state = {
-      chrono: [],
+      chrono: []
+    }
+  }
+ 
+  willFocusSubscription = this.props.navigation.addListener('willFocus', payload => {
+    var params = this.props.navigation.getParam('params')
+    if(params){
+      this.setState(state => state.chrono.push(params))
+    }
+
+  })
+
+  progress(begin, end) {
+    begin = new Date(begin);
+    end = new Date(end);
+
+    var beginEndDifference = (end.getTime() - begin.getTime()) / (1000 * 3600 * 24);
+    var beginTodayDifference = (new Date().getTime() - begin.getTime()) / (1000 * 3600 * 24);
+
+    var progress = ((beginTodayDifference * 100) / beginEndDifference);
+
+    if (progress > 100) {
+        return 1;
+    }
+    else {
+        if (progress < 0) { return 0.0 }
+        return progress / 100;
+    }
+  }
+  
+  
+  render(){  
+    return (
+    <View style={styles.container}>
+        <Text style={styles.welcome}>Comptes à rebours</Text>
+      <View style={{flex:1}}>
+          <FlatList
+            data = {this.state.chrono}
+            renderItem= {({item,index,separators}) =>(
+            <View  >
+              <Text onPress={()=>{  item.show= !item.show; separators.updateProps() }}>{item.label} {item.end}  </Text>
+              {item.show && <Button title="Supprimer" onPress={() => this.setState(state=> state.chrono.splice(index,1))} />}
+              <ProgressBarAndroid styleAttr="Horizontal" indeterminate={false} progress={this.progress(item.begin, item.end)}/>
+            </View>)} 
+            keyExtractor = {item => item.label}
+            style={{flex: 2}}
+          />
+          <Button title="Ajouter" onPress={() => this.props.navigation.navigate('Add')}/>
+           
+         
+         
+      </View>
+    </View>
+            
+    )
+  }
+}
+
+class ChronoAdd extends Component {
+  constructor(props){
+    super(props);
+     this.state = {
       label: null,
       begin: null,
-      end: null
+      end: null,
+      
       
     }
   }
 
-  labelChange = (event) => {
-    let value = event.target.value;
-    this.setState(state => state.label = value);
+  setBeginDate(date) {
+    this.setState({ begin:date});
   }
-  beginChange = (event) => {
-    let value = event.target.value;
-    this.setState(state => state.begin = value);
-  }
-  endChange = (event) => {
-    let value = event.target.value;
-    this.setState(state => state.end = value);
-  }
-  formSubmit = (event) => {
-    this.setState(state => state.chrono.push({label: state.label, begin: state.begin, end: state.end}))
-    event.preventDefault();
+  setEndDate(date) {
+    this.setState({ end:date});
   }
   render(){
-    const showList = this.state.chrono.map((element,index) => {
-      return <li id={index} onClick={this.handleClick}>{element.name}</li>
-  } )
     return (
-      <div style={{display: "flex"}}>
-                <div>
-                    <form onSubmit={this.formSubmit}>
-                        <TextInput value={this.state.label} onChangeText={this.labelChange} />
-                        <Button OnPress={this.show()} title="Selectionner la date de début"/>
-    
-                    </form>
-                    <ul>
-                        {showList}
-                    </ul>
-                </div>
-            </div>
-            { this.state.show && <DateTimePicker value={new Date().getDate()} mode="date" display="default" onChange={this.setDate} />}
+      <View style={{flex: 3}}>
+      <TextInput placeholder="label" value={this.state.label} onChangeText={(text)=> this.setState(state => state.label = text)} />  
+      <DatePicker date={this.state.begin} onDateChange={date => this.setBeginDate(date)} />
+      <DatePicker date={this.state.end} onDateChange={date => this.setEndDate(date)} minDate={this.state.begin}/>
+      <Button
+      title="Ajouter"
+      onPress={()=>{ this.props.navigation.navigate("Home", {params:{label: this.state.label, begin: this.state.begin, end: this.state.end, show: false}})}}
+    />   
+    </View>
     )
   }
 }
 
 export default class App extends Component {
   render() {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.welcome}>Comptes à rebours</Text>
-        <ScrollView>
-          <ChronoList/>
-        </ScrollView>
-       
-      </View>
+    return (  
+        <AppContainer/>     
     );
   }
 }
+
+
+const AppNavigator = createStackNavigator({
+  Home: {
+    screen: ChronoList
+  },
+  Add:{
+    screen: ChronoAdd
+  }
+}, 
+{
+  initialRouteName:'Home'
+})
+
+const AppContainer = createAppContainer( AppNavigator)
+
 
 const styles = StyleSheet.create({
   container: {
